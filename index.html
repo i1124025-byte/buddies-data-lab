@@ -3,37 +3,54 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Buddiesデータ研究部｜MVコメント推移（2025）</title>
+  <title>Buddiesデータ研究部</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="wrap">
+  <div class="wrap">
     <h1>Buddiesデータ研究部</h1>
-    <p class="sub">櫻坂46 MVの「2025年コメント推移」を曲別に可視化（β）</p>
-  </header>
+    <p class="sub">櫻坂46のデータを、感想ではなく数値で可視化する（β）</p>
 
-  <main class="wrap grid">
-    <article class="card">
-      <h2>桜月</h2>
-      <p class="meta">2025年月別コメント推移</p>
-      <img src="images/sakurazuki_2025_monthly.png" alt="桜月 2025年月別コメント推移グラフ">
-      <ul class="bullets">
-        <li>10月：465件で突出</li>
-        <li>1000万回目前後の記念コメントが集中した可能性</li>
-      </ul>
-      <p class="tag">#記念型</p>
-    </article>
+    <div class="grid" style="margin-top:14px;">
+      <!-- 桜月 -->
+      <div class="card">
+        <h2 style="margin:0; font-size:18px;">桜月</h2>
+        <div class="meta">2025年コメント推移（β）</div>
 
-    <article class="card">
-      <h2>Start over!</h2>
-      <p class="meta">準備中（次回追加）</p>
-      <div class="placeholder">グラフ作成中</div>
-      <p class="tag">#未分類</p>
-    </article>
-  </main>
+        <!-- 画像を置くなら：img/sakurazuki_2025.png みたいに -->
+        <!-- <img src="img/sakurazuki_2025.png" alt="桜月 2025年コメント推移"> -->
+        <div class="placeholder">画像（準備中 / ここにグラフ）</div>
 
-  <footer class="wrap foot">
-    <p>※本サイトは公開情報（コメント日時など）を集計した可視化です。個別コメントの引用は行いません。</p>
-  </footer>
+        <ul class="bullets">
+          <li>10月にコメントが増加（記念・ラストスパートの影響の可能性）</li>
+          <li>月別で波を可視化</li>
+          <li>次：Start over! など横展開予定</li>
+        </ul>
+
+        <a href="sakurazuki.html" style="display:inline-block; margin-top:12px; color:var(--txt); text-decoration:none; border:1px solid var(--line); padding:8px 10px; border-radius:10px;">
+          詳細を見る →
+        </a>
+
+        <div class="tag">曲別ページ</div>
+      </div>
+
+      <!-- Start over!（枠だけ先に作る） -->
+      <div class="card">
+        <h2 style="margin:0; font-size:18px;">Start over!</h2>
+        <div class="meta">準備中</div>
+        <div class="placeholder">データ準備中</div>
+        <ul class="bullets">
+          <li>2025年コメント推移</li>
+          <li>初動（1時間 / 12時間 / 24時間）など</li>
+        </ul>
+        <div class="tag">Coming soon</div>
+      </div>
+    </div>
+
+    <div class="foot" style="padding-top:10px;">
+      ※個別コメントの引用はせず、件数など集計データ中心で掲載します。<br>
+      更新：2026-02-xx（桜月ページ追加）
+    </div>
+  </div>
 </body>
 </html>
