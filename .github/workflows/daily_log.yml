@@ -37,6 +37,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # CSVとJSONの両方を追加
+          # フォルダ内のCSVと、キャッシュ用のJSONを両方追加
           git add logs/**/*.csv last_run_stats.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update hourly log and cache: $(date)" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update logs and cache: $(date)" && git push)
