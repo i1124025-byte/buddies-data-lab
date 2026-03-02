@@ -108,3 +108,6 @@ def log_all_stats():
     # キャッシュ更新
     with open(cache_path, 'w', encoding='utf-8') as f:
         json.dump(current_stats_to_cache, f, indent=4)
+
+if __name__ == "__main__":
+    log_all_stats()
