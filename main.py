@@ -1,41 +1,37 @@
 import os
 import csv
 import json
-import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from googleapiclient.discovery import build
 
 def log_all_stats():
-    api_key = os.environ.get('YT_API_KEY')
-    if not api_key:
-        print("API Key not found.")
-        return
-        
-    youtube = build('youtube', 'v3', developerKey=api_key)
+    # --- 1. 日本時間 (JST) の設定 ---
+    # GitHub ActionsのUTC時間をJST(+9時間)に変換
+    jst = timezone(timedelta(hours=9))
+    now_dt = datetime.now(jst).replace(minute=0, second=0, microsecond=0)
     
-    # --- 1. 保存パスとキャッシュファイルの設定 ---
-    now_dt = datetime.now()
     year_str = now_dt.strftime('%Y')
     month_str = now_dt.strftime('%Y-%m')
-    
+    now_str = now_dt.strftime('%Y-%m-%d %H:%M:%S')
+
+    # --- パス設定 ---
     log_dir = os.path.join('logs', year_str)
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
-        
     file_path = os.path.join(log_dir, f'stats_{month_str}.csv')
-    cache_path = 'last_run_stats.json' # 最新値を保持するキャッシュファイル
+    cache_path = 'last_run_stats.json'
 
-    # --- 2. キャッシュから前回値を取得 ---
+    # --- 2. キャッシュ読み込み ---
     last_views = {}
     if os.path.exists(cache_path):
-        try:
-            with open(cache_path, 'r', encoding='utf-8') as f:
-                last_views = json.load(f)
-        except Exception as e:
-            print(f"Cache read error: {e}")
+        with open(cache_path, 'r', encoding='utf-8') as f:
+            last_views = json.load(f)
 
-    # --- 3. 櫻坂46 曲リスト ---
-    # --- 取得したい楽曲リスト (曲名: 動画ID) ---
+    # --- 3. YouTube API 実行 ---
+    api_key = os.environ.get('YT_API_KEY')
+    youtube = build('youtube', 'v3', developerKey=api_key)
+    
+        # --- 取得したい楽曲リスト (曲名: 動画ID) ---
     target_videos = {
         "光源": "7pusekGNE-o",
         "The growing up train": "Rk54JNn7Qw4",
@@ -84,17 +80,14 @@ def log_all_stats():
         "Nobady's fault": "fagRTasDcKo"
     }
     
-    # --- 4. API実行 ---
     video_ids = [v for v in target_videos.values() if v]
     res = youtube.videos().list(part="statistics", id=','.join(video_ids)).execute()
     
     id_to_short = {v: k for k, v in target_videos.items()}
-    now_str = now_dt.strftime('%Y-%m-%d %H:%M:%S')
     file_exists = os.path.isfile(file_path)
-    
     current_stats_to_cache = {}
 
-    # --- 5. CSV書き込みとキャッシュ更新 ---
+    # --- 4. 書き込み ---
     with open(file_path, 'a', newline='', encoding='utf-8-sig') as f:
         writer = csv.writer(f)
         if not file_exists:
@@ -103,19 +96,15 @@ def log_all_stats():
         for item in res['items']:
             vid = item['id']
             short_name = id_to_short.get(vid, "Unknown")
-            stats = item['statistics']
-            views = int(stats.get('viewCount', 0))
+            views = int(item['statistics'].get('viewCount', 0))
             
-            # キャッシュから差分を計算。なければ0
+            # JSONにデータがあれば差分を計算、なければ0
             last_val = last_views.get(vid, views)
             diff = views - last_val
             
-            writer.writerow([now_str, short_name, views, diff, stats.get('likeCount', 0), stats.get('commentCount', 0), vid])
+            writer.writerow([now_str, short_name, views, diff, item['statistics'].get('likeCount', 0), item['statistics'].get('commentCount', 0), vid])
             current_stats_to_cache[vid] = views
 
-    # 次回のために最新値をJSONに保存
+    # キャッシュ更新
     with open(cache_path, 'w', encoding='utf-8') as f:
         json.dump(current_stats_to_cache, f, indent=4)
-
-if __name__ == "__main__":
-    log_all_stats()
