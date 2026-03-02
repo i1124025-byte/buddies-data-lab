@@ -28,11 +28,23 @@ jobs:
         run: |
           pip install google-api-python-client pandas
 
-      - name: Run script
+      - name: Run script (debug)
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
-        run: python main.py
-
+        run: |
+          set -euxo pipefail
+          python -V
+          pwd
+          ls -la
+          echo "YT_API_KEY length: ${#YT_API_KEY}"
+          python main.py
+          echo "=== after main.py ==="
+          find . -maxdepth 4 -type f \( -name "*.csv" -o -name "last_run_stats.json" \) -print
+          echo "=== logs listing ==="
+          ls -la logs || true
+          echo "=== last_run_stats.json ==="
+          ls -la last_run_stats.json || true
+          
       - name: Commit and Push
         run: |
           git config user.name "github-actions[bot]"
