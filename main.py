@@ -7,24 +7,24 @@ from googleapiclient.discovery import build
 def log_all_stats():
     api_key = os.environ.get('YT_API_KEY')
     if not api_key:
-        print("Error: YT_API_KEY not found.")
         return
         
     youtube = build('youtube', 'v3', developerKey=api_key)
-
-    # 既存のCSVから前回のデータを読み込む（差分計算用）
-    file_path = 'daily_stats_log.csv'
-    last_data = {}
-    if os.path.exists(file_path):
-        try:
-            df_old = pd.read_csv(file_path)
-            # 各動画の最新の再生数を取得
-            for vid in df_old['video_id'].unique():
-                last_val = df_old[df_old['video_id'] == vid].iloc[-1]['views']
-                last_data[vid] = last_val
-        except:
-            pass # 初回やエラー時はスキップ
     
+    # --- 階層構造のパス作成 ---
+    now_dt = datetime.now()
+    year_str = now_dt.strftime('%Y')       # '2026'
+    month_str = now_dt.strftime('%Y-%m')   # '2026-03'
+    
+    # 保存フォルダ: logs/2026
+    log_dir = os.path.join('logs', year_str)
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir) # logsフォルダも年フォルダも一気に作成
+        
+    # ファイルパス: logs/2026/stats_2026-03.csv
+    file_path = os.path.join(log_dir, f'stats_{month_str}.csv')
+
+    # --- 曲名リスト (target_videos) はそのまま ---
     # --- 取得したい楽曲リスト (曲名: 動画ID) ---
     target_videos = {
         "光源": "7pusekGNE-o",
@@ -71,48 +71,41 @@ def log_all_stats():
         "BAN": "fPZ37t3nvco",
         "Buddies": "yT5S7Cy5cCE",
         "なぜ　恋をして来なかったんだろう？": "S4gEJIyLHlM",
-        "Nobady's fault": "fagRTasDcKo",
-
+        "Nobady's fault": "fagRTasDcKo"
     }
-    
-    video_ids = list(target_videos.values())
-    
-    # API呼び出し (複数IDをカンマ区切りで一気に取得)
-    res = youtube.videos().list(
-        part="statistics,snippet",
-        id=','.join(video_ids)
-    ).execute()
 
-    # 3. IDから「あなたが決めた曲名」を引けるように逆引き辞書を作る
-    id_to_short_name = {v: k for k, v in target_videos.items()}
+    # 2. 過去データの読み込み（差分計算用）
+    last_views = {}
+    if os.path.exists(file_path):
+        try:
+            df_old = pd.read_csv(file_path)
+            if not df_old.empty:
+                last_views = df_old.groupby('video_id')['views'].last().to_dict()
+        except Exception as e:
+            print(f"Read error: {e}")
 
-    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    file_path = 'daily_stats_log.csv'
+    # 3. API実行
+    video_ids = [v for v in target_videos.values() if v]
+    res = youtube.videos().list(part="statistics", id=','.join(video_ids)).execute()
+    
+    id_to_short = {v: k for k, v in target_videos.items()}
+    now_str = now_dt.strftime('%Y-%m-%d %H:%M:%S')
     file_exists = os.path.isfile(file_path)
     
-    # 取得できた動画データを回す
+    # 4. 書き込み
     with open(file_path, 'a', newline='', encoding='utf-8-sig') as f:
         writer = csv.writer(f)
-        # 初回のみヘッダー作成
         if not file_exists:
             writer.writerow(['datetime', 'title', 'views', 'diff_views', 'likes', 'comments', 'video_id'])
             
         for item in res['items']:
             vid = item['id']
-            short_name = id_to_short_name.get(vid, "Unknown")
-            title = item['snippet']['title']
-            views = int(item['statistics'].get('viewCount', 0))
+            short_name = id_to_short.get(vid, "Unknown")
+            stats = item['statistics']
+            current_views = int(stats.get('viewCount', 0))
+            diff = current_views - last_views.get(vid, current_views)
             
-            # 差分（時速）の計算
-            diff = views - last_data.get(vid, views) 
-            
-            writer.writerow([
-                now, short_name, views, diff,
-                item['statistics'].get('likeCount'),
-                item['statistics'].get('commentCount'),
-                vid
-            ])
-            print(f"Logged: {title}")
+            writer.writerow([now_str, short_name, current_views, diff, stats.get('likeCount', 0), stats.get('commentCount', 0), vid])
 
 if __name__ == "__main__":
     log_all_stats()
