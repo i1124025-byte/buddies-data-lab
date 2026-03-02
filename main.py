@@ -7,9 +7,13 @@ from googleapiclient.discovery import build
 
 def log_all_stats():
     api_key = os.environ.get('YT_API_KEY')
+    if not api_key:
+        print("API Key not found.")
+        return
+        
     youtube = build('youtube', 'v3', developerKey=api_key)
     
-    # --- 1. 保存先とキャッシュファイルの設定 ---
+    # --- 1. 保存パスとキャッシュファイルの設定 ---
     now_dt = datetime.now()
     year_str = now_dt.strftime('%Y')
     month_str = now_dt.strftime('%Y-%m')
@@ -19,7 +23,7 @@ def log_all_stats():
         os.makedirs(log_dir)
         
     file_path = os.path.join(log_dir, f'stats_{month_str}.csv')
-    cache_path = 'last_run_stats.json' # 最新値を保持するファイル
+    cache_path = 'last_run_stats.json' # 最新値を保持するキャッシュファイル
 
     # --- 2. キャッシュから前回値を取得 ---
     last_views = {}
@@ -30,7 +34,7 @@ def log_all_stats():
         except Exception as e:
             print(f"Cache read error: {e}")
 
-    # --- 3. 曲リストとAPI実行 ---
+    # --- 3. 櫻坂46 曲リスト ---
     # --- 取得したい楽曲リスト (曲名: 動画ID) ---
     target_videos = {
         "光源": "7pusekGNE-o",
@@ -80,6 +84,7 @@ def log_all_stats():
         "Nobady's fault": "fagRTasDcKo"
     }
     
+    # --- 4. API実行 ---
     video_ids = [v for v in target_videos.values() if v]
     res = youtube.videos().list(part="statistics", id=','.join(video_ids)).execute()
     
@@ -87,9 +92,9 @@ def log_all_stats():
     now_str = now_dt.strftime('%Y-%m-%d %H:%M:%S')
     file_exists = os.path.isfile(file_path)
     
-    current_stats_to_cache = {} # JSON保存用
+    current_stats_to_cache = {}
 
-    # --- 4. 書き込みとキャッシュ更新 ---
+    # --- 5. CSV書き込みとキャッシュ更新 ---
     with open(file_path, 'a', newline='', encoding='utf-8-sig') as f:
         writer = csv.writer(f)
         if not file_exists:
@@ -101,16 +106,14 @@ def log_all_stats():
             stats = item['statistics']
             views = int(stats.get('viewCount', 0))
             
-            # JSONから前回の値を取得して差分を計算（月をまたいでもここから取れる）
+            # キャッシュから差分を計算。なければ0
             last_val = last_views.get(vid, views)
             diff = views - last_val
             
             writer.writerow([now_str, short_name, views, diff, stats.get('likeCount', 0), stats.get('commentCount', 0), vid])
-            
-            # 今回の値を次のために保存
             current_stats_to_cache[vid] = views
 
-    # 最新値をJSONに保存
+    # 次回のために最新値をJSONに保存
     with open(cache_path, 'w', encoding='utf-8') as f:
         json.dump(current_stats_to_cache, f, indent=4)
 
