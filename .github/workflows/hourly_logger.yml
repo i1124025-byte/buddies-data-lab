@@ -1,0 +1,42 @@
+name: Hourly YouTube Stat Logger
+
+on:
+  schedule:
+    # 毎時0分に実行（日本時間では毎時0分になります）
+    - cron: "*/5 * * * *"
+  workflow_dispatch: # 手動実行ボタンを有効化
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # サーバーがファイルに書き込む権限を持つために必要
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          pip install google-api-python-client pandas
+
+      - name: Run script
+        env:
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}
+        run: python main.py
+
+      - name: Commit and Push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # フォルダ内のCSVと、キャッシュ用のJSONを両方追加
+          git add logs/**/*.csv last_run_stats.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update logs and cache: $(date)" && git push)
