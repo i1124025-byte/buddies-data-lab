@@ -1,30 +1,36 @@
 import os
 import csv
+import json
 import pandas as pd
 from datetime import datetime
 from googleapiclient.discovery import build
 
 def log_all_stats():
     api_key = os.environ.get('YT_API_KEY')
-    if not api_key:
-        return
-        
     youtube = build('youtube', 'v3', developerKey=api_key)
     
-    # --- 階層構造のパス作成 ---
+    # --- 1. 保存先とキャッシュファイルの設定 ---
     now_dt = datetime.now()
-    year_str = now_dt.strftime('%Y')       # '2026'
-    month_str = now_dt.strftime('%Y-%m')   # '2026-03'
+    year_str = now_dt.strftime('%Y')
+    month_str = now_dt.strftime('%Y-%m')
     
-    # 保存フォルダ: logs/2026
     log_dir = os.path.join('logs', year_str)
     if not os.path.exists(log_dir):
-        os.makedirs(log_dir) # logsフォルダも年フォルダも一気に作成
+        os.makedirs(log_dir)
         
-    # ファイルパス: logs/2026/stats_2026-03.csv
     file_path = os.path.join(log_dir, f'stats_{month_str}.csv')
+    cache_path = 'last_run_stats.json' # 最新値を保持するファイル
 
-    # --- 曲名リスト (target_videos) はそのまま ---
+    # --- 2. キャッシュから前回値を取得 ---
+    last_views = {}
+    if os.path.exists(cache_path):
+        try:
+            with open(cache_path, 'r', encoding='utf-8') as f:
+                last_views = json.load(f)
+        except Exception as e:
+            print(f"Cache read error: {e}")
+
+    # --- 3. 曲リストとAPI実行 ---
     # --- 取得したい楽曲リスト (曲名: 動画ID) ---
     target_videos = {
         "光源": "7pusekGNE-o",
@@ -73,18 +79,7 @@ def log_all_stats():
         "なぜ　恋をして来なかったんだろう？": "S4gEJIyLHlM",
         "Nobady's fault": "fagRTasDcKo"
     }
-
-    # 2. 過去データの読み込み（差分計算用）
-    last_views = {}
-    if os.path.exists(file_path):
-        try:
-            df_old = pd.read_csv(file_path)
-            if not df_old.empty:
-                last_views = df_old.groupby('video_id')['views'].last().to_dict()
-        except Exception as e:
-            print(f"Read error: {e}")
-
-    # 3. API実行
+    
     video_ids = [v for v in target_videos.values() if v]
     res = youtube.videos().list(part="statistics", id=','.join(video_ids)).execute()
     
@@ -92,7 +87,9 @@ def log_all_stats():
     now_str = now_dt.strftime('%Y-%m-%d %H:%M:%S')
     file_exists = os.path.isfile(file_path)
     
-    # 4. 書き込み
+    current_stats_to_cache = {} # JSON保存用
+
+    # --- 4. 書き込みとキャッシュ更新 ---
     with open(file_path, 'a', newline='', encoding='utf-8-sig') as f:
         writer = csv.writer(f)
         if not file_exists:
@@ -102,10 +99,20 @@ def log_all_stats():
             vid = item['id']
             short_name = id_to_short.get(vid, "Unknown")
             stats = item['statistics']
-            current_views = int(stats.get('viewCount', 0))
-            diff = current_views - last_views.get(vid, current_views)
+            views = int(stats.get('viewCount', 0))
             
-            writer.writerow([now_str, short_name, current_views, diff, stats.get('likeCount', 0), stats.get('commentCount', 0), vid])
+            # JSONから前回の値を取得して差分を計算（月をまたいでもここから取れる）
+            last_val = last_views.get(vid, views)
+            diff = views - last_val
+            
+            writer.writerow([now_str, short_name, views, diff, stats.get('likeCount', 0), stats.get('commentCount', 0), vid])
+            
+            # 今回の値を次のために保存
+            current_stats_to_cache[vid] = views
+
+    # 最新値をJSONに保存
+    with open(cache_path, 'w', encoding='utf-8') as f:
+        json.dump(current_stats_to_cache, f, indent=4)
 
 if __name__ == "__main__":
     log_all_stats()
