@@ -8,7 +8,7 @@ def log_all_stats():
     # --- 1. 日本時間 (JST) の設定 ---
     # GitHub ActionsのUTC時間をJST(+9時間)に変換
     jst = timezone(timedelta(hours=9))
-    now_dt = datetime.now(jst).replace(minute=0, second=0, microsecond=0)
+    now_dt = datetime.now(jst)
     
     year_str = now_dt.strftime('%Y')
     month_str = now_dt.strftime('%Y-%m')
